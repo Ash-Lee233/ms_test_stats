@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>MindSpore Tests Stats</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin: 24px; }
+    .card { border: 1px solid #eee; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    #c1, #c2, #c3 { width: 100%; height: 420px; }
+  </style>
+</head>
+<body>
+<h2>tests/ Stats (Git clone version)</h2>
+
+<div class="card">
+  <h3>Cases per Level (unmarked excluded)</h3>
+  <div id="c1"></div>
+</div>
+
+<div class="card">
+  <h3>Level × Device (unmarked excluded)</h3>
+  <div id="c2"></div>
+</div>
+
+<div class="card">
+  <h3>Top Directories (Top 20)</h3>
+  <div id="c3"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script>
+async function main() {
+  const r = await fetch("/api/summary");
+  const data = await r.json();
+
+  // Chart 1: total per level (with labels)
+  echarts.init(document.getElementById("c1")).setOption({
+    tooltip: {},
+    xAxis: { type: "category", data: data.levels },
+    yAxis: { type: "value" },
+    series: [{
+      type: "bar",
+      name: "total",
+      data: data.totals,
+      label: { show: true, position: "top" }
+    }]
+  });
+
+  // Chart 2: level x device (stacked, with labels)
+  echarts.init(document.getElementById("c2")).setOption({
+    tooltip: { trigger: "axis" },
+    legend: { data: data.devices },
+    xAxis: { type: "category", data: data.levels },
+    yAxis: { type: "value" },
+    series: data.series.map(s => ({
+      ...s,
+      type: "bar",
+      stack: "dev",
+      label: { show: true }
+    }))
+  });
+
+  // Chart 3: top directories (with labels)
+  const r2 = await fetch("/api/dir_top");
+  const d2 = await r2.json();
+
+  echarts.init(document.getElementById("c3")).setOption({
+    tooltip: {},
+    xAxis: { type: "value" },
+    yAxis: { type: "category", data: d2.dirs },
+    series: [{
+      type: "bar",
+      name: "total",
+      data: d2.totals,
+      label: { show: true, position: "right" }
+    }]
+  });
+}
+main();
+</script>
+</body>
+</html>

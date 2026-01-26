@@ -1,0 +1,10 @@
+repo_root: "/path/to/mindspore"
+tests_dir: "tests"
+output_excel: "output/stats.xlsx"
+
+level_regex: "^level\\d+$"
+
+device_keywords:
+  cpu: ["_cpu"]
+  gpu: ["_gpu"]
+  npu: ["_ascend", "ascend", "_npu", "npu"]
