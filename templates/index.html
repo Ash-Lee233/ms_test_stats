@@ -7,38 +7,91 @@
     body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin: 24px; }
     .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
     .card { border: 1px solid #eee; border-radius: 12px; padding: 16px; }
-    #c1,#c2,#c3,#c4,#c5 { width: 100%; height: 420px; }
+    .note { color: #666; font-size: 13px; margin-top: 10px; line-height: 1.4; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #eee; padding: 8px 10px; font-size: 13px; text-align: left; }
+    th { background: #fafafa; position: sticky; top: 0; }
+    .scroll { max-height: 520px; overflow: auto; border: 1px solid #eee; border-radius: 10px; }
+    #c2,#c3,#c4,#c5 { width: 100%; height: 420px; }
   </style>
 </head>
 <body>
 <h2>MindSpore tests/ stats (Git clone)</h2>
 
 <div class="grid">
-  <div class="card"><h3>Cases per Level (unmarked excluded)</h3><div id="c1"></div></div>
-  <div class="card"><h3>Level × Device (unmarked excluded)</h3><div id="c2"></div></div>
-  <div class="card"><h3>Top Directories (Top 20)</h3><div id="c3"></div></div>
-  <div class="card"><h3>Quality Grade Distribution (A/B/C)</h3><div id="c4"></div></div>
-  <div class="card"><h3>Level × Quality Grade (unmarked excluded)</h3><div id="c5"></div></div>
+  <div class="card">
+    <h3>Level × Device (unmarked excluded, skip removed)</h3>
+    <div id="c2"></div>
+    <div class="note">
+      How many test cases run on each device type (CPU/GPU/NPU/unknown) for every level.
+      Tests marked with <code>@pytest.mark.skip</code> are excluded. <code>unmarked</code> level is hidden.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Top Directories (Top 20, skip removed)</h3>
+    <div id="c3"></div>
+    <div class="note">
+      Top 20 directory groups (e.g. <code>ut/python</code>, <code>st</code>) by runnable test count
+      (tests with <code>@pytest.mark.skip</code> removed).
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Quality Grade Distribution (A/B/C, no skipping)</h3>
+    <div id="c4"></div>
+    <div class="note">
+      Overall A/B/C distribution based on static heuristics. Quality analysis includes all tests (including <code>@pytest.mark.skip</code>).
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Level × Quality Grade (unmarked excluded, no skipping)</h3>
+    <div id="c5"></div>
+    <div class="note">
+      A/B/C breakdown per level. Quality analysis includes all tests; <code>unmarked</code> level is hidden.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Owner (top + second-level) × Quality Grade (table only, no skipping)</h3>
+    <div class="scroll">
+      <table id="qt">
+        <thead><tr id="qt_head"></tr></thead>
+        <tbody id="qt_body"></tbody>
+      </table>
+    </div>
+    <div class="note">
+      A/B/C counts grouped by the first and second directory levels under <code>tests/</code> (e.g. <code>tests/ut/python/...</code> becomes <code>ut</code> + <code>python</code>).
+      Quality analysis includes all tests (no skipping).
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Pytest Decorators Used by Test Cases (table)</h3>
+    <div class="scroll">
+      <table id="pt">
+        <thead><tr><th>pytest_decorator</th><th>occurrences</th><th>unique_test_cases</th></tr></thead>
+        <tbody id="pt_body"></tbody>
+      </table>
+    </div>
+    <div class="note">
+      Shows both how many times each <code>@pytest...</code> decorator appears (<code>occurrences</code>) and how many distinct test cases use it (<code>unique_test_cases</code>).
+      
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 <script>
 async function main() {
-  const data = await (await fetch("/api/summary")).json();
-
-  echarts.init(document.getElementById("c1")).setOption({
-    tooltip: {},
-    xAxis: { type: "category", data: data.levels },
-    yAxis: { type: "value" },
-    series: [{ type: "bar", name: "total", data: data.totals, label: { show: true, position: "top" } }]
-  });
-
+  const ld = await (await fetch("/api/level_device")).json();
   echarts.init(document.getElementById("c2")).setOption({
     tooltip: { trigger: "axis" },
-    legend: { data: data.devices },
-    xAxis: { type: "category", data: data.levels },
+    legend: { data: ld.devices },
+    xAxis: { type: "category", data: ld.levels },
     yAxis: { type: "value" },
-    series: data.series.map(s => ({ ...s, type: "bar", stack: "dev", label: { show: true } }))
+    series: ld.series.map(s => ({ ...s, type: "bar", stack: "dev", label: { show: true } }))
   });
 
   const d2 = await (await fetch("/api/dir_top")).json();
@@ -64,6 +117,18 @@ async function main() {
     yAxis: { type: "value" },
     series: q.series.map(s => ({ ...s, type: "bar", stack: "grade", label: { show: true } }))
   });
+
+  const qt = await (await fetch("/api/quality_owner_table")).json();
+  const head = document.getElementById("qt_head");
+  const body = document.getElementById("qt_body");
+  const cols = ["owner_top", "owner_sub", ...qt.grades, "total"];
+  head.innerHTML = cols.map(c => `<th>${c}</th>`).join("");
+  body.innerHTML = qt.rows.map(r => `<tr>${cols.map(c => `<td>${r[c] ?? ""}</td>`).join("")}</tr>`).join("");
+
+  const pt = await (await fetch("/api/pytest_decorators_table")).json();
+  document.getElementById("pt_body").innerHTML = pt.rows.map(r => {
+    return `<tr><td>${r.pytest_decorator}</td><td>${r.occurrences}</td><td>${r.unique_test_cases}</td></tr>`;
+  }).join("");
 }
 main();
 </script>

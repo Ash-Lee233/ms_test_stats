@@ -1,4 +1,4 @@
-repo_root: "/path/to/mindspore"
+repo_root: "/work/mindspore"
 tests_dir: "tests"
 output_excel: "output/stats.xlsx"
 

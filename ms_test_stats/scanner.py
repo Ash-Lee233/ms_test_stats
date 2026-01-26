@@ -1,3 +1,6 @@
+"""
+Author: Shawny
+"""
 from pathlib import Path
 from typing import Iterable, List
 from tqdm import tqdm

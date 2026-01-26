@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>MindSpore Tests Stats</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin: 24px; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    .card { border: 1px solid #eee; border-radius: 12px; padding: 16px; }
+    .note { color: #666; font-size: 13px; margin-top: 10px; line-height: 1.4; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #eee; padding: 8px 10px; font-size: 13px; text-align: left; }
+    th { background: #fafafa; position: sticky; top: 0; }
+    .scroll { max-height: 520px; overflow: auto; border: 1px solid #eee; border-radius: 10px; }
+    #c2,#c3,#c4,#c5 { width: 100%; height: 420px; }
+  </style>
+</head>
+<body>
+<h2>MindSpore tests/ stats (Git clone)</h2>
+
+<div class="grid">
+  <div class="card">
+    <h3>Level × Device (unmarked excluded, skip removed)</h3>
+    <div id="c2"></div>
+    <div class="note">
+      How many test cases run on each device type (CPU/GPU/NPU/unknown) for every level.
+      Tests marked with <code>@pytest.mark.skip</code> are excluded. <code>unmarked</code> level is hidden.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Top Directories (Top 20, skip removed)</h3>
+    <div id="c3"></div>
+    <div class="note">
+      Top 20 directory groups (e.g. <code>ut/python</code>, <code>st</code>) by runnable test count
+      (tests with <code>@pytest.mark.skip</code> removed).
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Quality Grade Distribution (A/B/C, no skipping)</h3>
+    <div id="c4"></div>
+    <div class="note">
+      Overall A/B/C distribution based on static heuristics. Quality analysis includes all tests (including <code>@pytest.mark.skip</code>).
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Level × Quality Grade (unmarked excluded, no skipping)</h3>
+    <div id="c5"></div>
+    <div class="note">
+      A/B/C breakdown per level. Quality analysis includes all tests; <code>unmarked</code> level is hidden.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Owner (top + second-level) × Quality Grade (table only, no skipping)</h3>
+    <div class="scroll">
+      <table id="qt">
+        <thead><tr id="qt_head"></tr></thead>
+        <tbody id="qt_body"></tbody>
+      </table>
+    </div>
+    <div class="note">
+      A/B/C counts grouped by the first and second directory levels under <code>tests/</code> (e.g. <code>tests/ut/python/...</code> becomes <code>ut</code> + <code>python</code>).
+      Quality analysis includes all tests (no skipping).
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Pytest Decorators Used by Test Cases (table)</h3>
+    <div class="scroll">
+      <table id="pt">
+        <thead><tr><th>pytest_decorator</th><th>occurrences</th><th>unique_test_cases</th></tr></thead>
+        <tbody id="pt_body"></tbody>
+      </table>
+    </div>
+    <div class="note">
+      Shows both how many times each <code>@pytest...</code> decorator appears (<code>occurrences</code>) and how many distinct test cases use it (<code>unique_test_cases</code>).
+      
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script>
+function main() {
+  const ld = {"levels": ["level0", "level1"], "devices": ["cpu", "gpu", "npu", "unknown"], "series": [{"name": "cpu", "data": [7, 7]}, {"name": "gpu", "data": [1, 6]}, {"name": "npu", "data": [5, 44]}, {"name": "unknown", "data": [14, 1]}]};
+  echarts.init(document.getElementById("c2")).setOption({
+    tooltip: { trigger: "axis" },
+    legend: { data: ld.devices },
+    xAxis: { type: "category", data: ld.levels },
+    yAxis: { type: "value" },
+    series: ld.series.map(s => ({ ...s, type: "bar", stack: "dev", label: { show: true } }))
+  });
+
+  const d2 = {"dirs": ["ut/python", "st/ops", "st/compiler", "st/pi_jit", "st/tensor", "st/pynative", "st/mint", "st/dynamic_shape", "ut/cpp", "st/collective_ops", "st/numpy_native", "st/graph_kernel", "st/runtime", "st/backend", "st/dataset", "st/probability", "st/auto_parallel", "st/infer", "st/tools", "st/nn"], "totals": [9481, 6734, 3154, 1760, 677, 656, 560, 482, 314, 280, 269, 269, 231, 206, 201, 171, 169, 145, 136, 126]};
+  echarts.init(document.getElementById("c3")).setOption({
+    tooltip: {},
+    xAxis: { type: "value" },
+    yAxis: { type: "category", data: d2.dirs },
+    series: [{ type: "bar", name: "total", data: d2.totals, label: { show: true, position: "right" } }]
+  });
+
+  const q = {"grades": ["A", "B", "C"], "overall": [6026, 12673, 8796], "levels": ["level0", "level1"], "series": [{"name": "A", "data": [5, 13]}, {"name": "B", "data": [16, 11]}, {"name": "C", "data": [2, 21]}]};
+  echarts.init(document.getElementById("c4")).setOption({
+    tooltip: {},
+    xAxis: { type: "category", data: q.grades },
+    yAxis: { type: "value" },
+    series: [{ type: "bar", name: "cases", data: q.overall, label: { show: true, position: "top" } }]
+  });
+
+  echarts.init(document.getElementById("c5")).setOption({
+    tooltip: { trigger: "axis" },
+    legend: { data: q.series.map(s => s.name) },
+    xAxis: { type: "category", data: q.levels },
+    yAxis: { type: "value" },
+    series: q.series.map(s => ({ ...s, type: "bar", stack: "grade", label: { show: true } }))
+  });
+
+  const qt = {"grades": ["A", "B", "C"], "rows": [{"owner_top": "mindspore_test_framework", "owner_sub": "apps", "A": 0, "B": 0, "C": 14, "total": 14}, {"owner_top": "perf_test", "owner_sub": "bert", "A": 0, "B": 0, "C": 2, "total": 2}, {"owner_top": "perf_test", "owner_sub": "test_lenet.py", "A": 0, "B": 0, "C": 2, "total": 2}, {"owner_top": "perf_test", "owner_sub": "test_passes_optimize.py", "A": 0, "B": 0, "C": 3, "total": 3}, {"owner_top": "perf_test", "owner_sub": "test_resnet_infer.py", "A": 0, "B": 0, "C": 1, "total": 1}, {"owner_top": "perf_test", "owner_sub": "test_resnet_pynative.py", "A": 0, "B": 0, "C": 1, "total": 1}, {"owner_top": "perf_test", "owner_sub": "test_resnet_train.py", "A": 0, "B": 0, "C": 1, "total": 1}, {"owner_top": "st", "owner_sub": "amp", "A": 2, "B": 0, "C": 0, "total": 2}, {"owner_top": "st", "owner_sub": "armour", "A": 0, "B": 3, "C": 0, "total": 3}, {"owner_top": "st", "owner_sub": "auto_parallel", "A": 5, "B": 103, "C": 64, "total": 172}, {"owner_top": "st", "owner_sub": "backend", "A": 14, "B": 87, "C": 105, "total": 206}, {"owner_top": "st", "owner_sub": "broadcast", "A": 0, "B": 1, "C": 1, "total": 2}, {"owner_top": "st", "owner_sub": "cluster", "A": 6, "B": 11, "C": 0, "total": 17}, {"owner_top": "st", "owner_sub": "collective_ops", "A": 91, "B": 157, "C": 32, "total": 280}, {"owner_top": "st", "owner_sub": "common", "A": 1, "B": 0, "C": 0, "total": 1}, {"owner_top": "st", "owner_sub": "compiler", "A": 459, "B": 2442, "C": 396, "total": 3297}, {"owner_top": "st", "owner_sub": "container", "A": 12, "B": 11, "C": 0, "total": 23}, {"owner_top": "st", "owner_sub": "cpu_data_parallel", "A": 0, "B": 3, "C": 0, "total": 3}, {"owner_top": "st", "owner_sub": "custom", "A": 45, "B": 52, "C": 8, "total": 105}, {"owner_top": "st", "owner_sub": "data_transfer", "A": 0, "B": 1, "C": 4, "total": 5}, {"owner_top": "st", "owner_sub": "dataloader", "A": 46, "B": 38, "C": 31, "total": 115}, {"owner_top": "st", "owner_sub": "dataset", "A": 105, "B": 45, "C": 55, "total": 205}, {"owner_top": "st", "owner_sub": "dataset_helper", "A": 0, "B": 1, "C": 0, "total": 1}, {"owner_top": "st", "owner_sub": "dfx", "A": 0, "B": 1, "C": 1, "total": 2}, {"owner_top": "st", "owner_sub": "dynamic_shape", "A": 418, "B": 60, "C": 13, "total": 491}, {"owner_top": "st", "owner_sub": "export_and_load", "A": 33, "B": 54, "C": 16, "total": 103}, {"owner_top": "st", "owner_sub": "frontend", "A": 4, "B": 12, "C": 15, "total": 31}, {"owner_top": "st", "owner_sub": "fusion", "A": 2, "B": 4, "C": 10, "total": 16}, {"owner_top": "st", "owner_sub": "gnn", "A": 0, "B": 1, "C": 6, "total": 7}, {"owner_top": "st", "owner_sub": "golden_stick", "A": 0, "B": 1, "C": 0, "total": 1}, {"owner_top": "st", "owner_sub": "graceful_exit", "A": 0, "B": 2, "C": 0, "total": 2}, {"owner_top": "st", "owner_sub": "graph_kernel", "A": 28, "B": 54, "C": 187, "total": 269}, {"owner_top": "st", "owner_sub": "hal", "A": 9, "B": 29, "C": 21, "total": 59}, {"owner_top": "st", "owner_sub": "hardware", "A": 6, "B": 11, "C": 17, "total": 34}, {"owner_top": "st", "owner_sub": "heterogeneous", "A": 1, "B": 14, "C": 0, "total": 15}, {"owner_top": "st", "owner_sub": "high_availability", "A": 3, "B": 23, "C": 20, "total": 46}, {"owner_top": "st", "owner_sub": "high_grad", "A": 1, "B": 3, "C": 4, "total": 8}, {"owner_top": "st", "owner_sub": "hyper_offload", "A": 5, "B": 33, "C": 0, "total": 38}, {"owner_top": "st", "owner_sub": "infer", "A": 12, "B": 120, "C": 13, "total": 145}, {"owner_top": "st", "owner_sub": "mem_reuse", "A": 0, "B": 0, "C": 2, "total": 2}, {"owner_top": "st", "owner_sub": "mindrecord", "A": 0, "B": 1, "C": 0, "total": 1}, {"owner_top": "st", "owner_sub": "mindscience", "A": 3, "B": 0, "C": 0, "total": 3}, {"owner_top": "st", "owner_sub": "mint", "A": 201, "B": 240, "C": 119, "total": 560}, {"owner_top": "st", "owner_sub": "mix_precision", "A": 12, "B": 9, "C": 4, "total": 25}, {"owner_top": "st", "owner_sub": "networks", "A": 0, "B": 40, "C": 29, "total": 69}, {"owner_top": "st", "owner_sub": "nn", "A": 91, "B": 19, "C": 17, "total": 127}, {"owner_top": "st", "owner_sub": "nontask_sink", "A": 1, "B": 7, "C": 2, "total": 10}, {"owner_top": "st", "owner_sub": "numpy_native", "A": 7, "B": 40, "C": 222, "total": 269}, {"owner_top": "st", "owner_sub": "offload", "A": 7, "B": 6, "C": 0, "total": 13}, {"owner_top": "st", "owner_sub": "ops", "A": 1881, "B": 3073, "C": 1827, "total": 6781}, {"owner_top": "st", "owner_sub": "optimizer", "A": 12, "B": 9, "C": 1, "total": 22}, {"owner_top": "st", "owner_sub": "optimizer_ex", "A": 13, "B": 54, "C": 1, "total": 68}, {"owner_top": "st", "owner_sub": "parameter", "A": 19, "B": 2, "C": 0, "total": 21}, {"owner_top": "st", "owner_sub": "pi_jit", "A": 259, "B": 830, "C": 709, "total": 1798}, {"owner_top": "st", "owner_sub": "probability", "A": 16, "B": 150, "C": 5, "total": 171}, {"owner_top": "st", "owner_sub": "pynative", "A": 165, "B": 349, "C": 142, "total": 656}, {"owner_top": "st", "owner_sub": "rewrite", "A": 13, "B": 4, "C": 0, "total": 17}, {"owner_top": "st", "owner_sub": "runtime", "A": 58, "B": 130, "C": 44, "total": 232}, {"owner_top": "st", "owner_sub": "scipy_st", "A": 61, "B": 23, "C": 5, "total": 89}, {"owner_top": "st", "owner_sub": "sparse", "A": 27, "B": 65, "C": 14, "total": 106}, {"owner_top": "st", "owner_sub": "symmetric_memory_ops", "A": 0, "B": 9, "C": 0, "total": 9}, {"owner_top": "st", "owner_sub": "tensor", "A": 466, "B": 137, "C": 76, "total": 679}, {"owner_top": "st", "owner_sub": "tools", "A": 15, "B": 38, "C": 84, "total": 137}, {"owner_top": "st", "owner_sub": "train", "A": 16, "B": 5, "C": 3, "total": 24}, {"owner_top": "st", "owner_sub": "utils", "A": 3, "B": 7, "C": 0, "total": 10}, {"owner_top": "st", "owner_sub": "vmap", "A": 5, "B": 6, "C": 0, "total": 11}, {"owner_top": "ut", "owner_sub": "cpp", "A": 0, "B": 1, "C": 313, "total": 314}, {"owner_top": "ut", "owner_sub": "data", "A": 0, "B": 0, "C": 5, "total": 5}, {"owner_top": "ut", "owner_sub": "ge", "A": 0, "B": 2, "C": 1, "total": 3}, {"owner_top": "ut", "owner_sub": "python", "A": 1367, "B": 4040, "C": 4128, "total": 9535}]};
+  const head = document.getElementById("qt_head");
+  const body = document.getElementById("qt_body");
+  const cols = ["owner_top", "owner_sub", ...qt.grades, "total"];
+  head.innerHTML = cols.map(c => `<th>${c}</th>`).join("");
+  body.innerHTML = qt.rows.map(r => `<tr>${cols.map(c => `<td>${r[c] ?? ""}</td>`).join("")}</tr>`).join("");
+
+  const pt = {"rows": [{"pytest_decorator": "pytest.mark.parametrize", "occurrences": 6659, "unique_test_cases": 4365}, {"pytest_decorator": "pytest.mark.skip", "occurrences": 308, "unique_test_cases": 307}, {"pytest_decorator": "pytest.mark.skipif", "occurrences": 266, "unique_test_cases": 215}, {"pytest_decorator": "pytest.mark.env_onecard", "occurrences": 56, "unique_test_cases": 56}, {"pytest_decorator": "pytest.mark.level1", "occurrences": 45, "unique_test_cases": 45}, {"pytest_decorator": "pytest.mark.platform_arm_ascend_training", "occurrences": 26, "unique_test_cases": 26}, {"pytest_decorator": "pytest.mark.platform_arm_ascend910b_training", "occurrences": 24, "unique_test_cases": 24}, {"pytest_decorator": "pytest.mark.level0", "occurrences": 23, "unique_test_cases": 22}, {"pytest_decorator": "pytest.mark.platform_x86_cpu", "occurrences": 14, "unique_test_cases": 14}, {"pytest_decorator": "pytest.mark.usefixtures", "occurrences": 14, "unique_test_cases": 14}, {"pytest_decorator": "pytest.mark.platform_x86_ascend_training", "occurrences": 13, "unique_test_cases": 13}, {"pytest_decorator": "pytest.mark.no_taskset", "occurrences": 9, "unique_test_cases": 9}, {"pytest_decorator": "pytest.mark.platform_x86_gpu_training", "occurrences": 7, "unique_test_cases": 7}, {"pytest_decorator": "pytest.mark.platform_arm_cpu", "occurrences": 3, "unique_test_cases": 3}, {"pytest_decorator": "pytest.fixture", "occurrences": 1, "unique_test_cases": 1}, {"pytest_decorator": "pytest.mark.offline_infer_executor", "occurrences": 1, "unique_test_cases": 1}]};
+  document.getElementById("pt_body").innerHTML = pt.rows.map(r => {
+    return `<tr><td>${r.pytest_decorator}</td><td>${r.occurrences}</td><td>${r.unique_test_cases}</td></tr>`;
+  }).join("");
+}
+main();
+</script>
+</body>
+</html>
