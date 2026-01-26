@@ -24,19 +24,10 @@ def main():
         try:
             cases.extend(extract_testcases_from_file(py_path, src, level_re))
         except SyntaxError:
-            # Rare: some files may not be parseable
             continue
 
-    df_cases, df_level, df_level_device, df_dir_level, df_dir_level_device = build_dataframes(
-        cases, cfg["device_keywords"], str(tests_root)
-    )
-
-    write_excel(out_excel,
-                df_cases,
-                df_level,
-                df_level_device,
-                df_dir_level,
-                df_dir_level_device)
+    dfs = build_dataframes(cases, cfg["device_keywords"], str(tests_root))
+    write_excel(out_excel, **dfs)
 
     print(f"[OK] Excel written to: {out_excel}")
     print("[OK] Start web on http://127.0.0.1:5000")

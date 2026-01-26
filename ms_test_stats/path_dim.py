@@ -1,12 +1,6 @@
 from pathlib import Path
 
 def dir_group(file_path: str, tests_root: str) -> str:
-    """
-    Group by directory dimension:
-      tests/ut/python/... -> ut/python
-      tests/st/...        -> st
-    Rule: relative to tests_root, take first 2 path parts (if available).
-    """
     p = Path(file_path).resolve()
     tr = Path(tests_root).resolve()
 

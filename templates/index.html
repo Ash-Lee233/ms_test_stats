@@ -5,75 +5,64 @@
   <title>MindSpore Tests Stats</title>
   <style>
     body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin: 24px; }
-    .card { border: 1px solid #eee; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-    #c1, #c2, #c3 { width: 100%; height: 420px; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    .card { border: 1px solid #eee; border-radius: 12px; padding: 16px; }
+    #c1,#c2,#c3,#c4,#c5 { width: 100%; height: 420px; }
   </style>
 </head>
 <body>
-<h2>tests/ Stats (Git clone version)</h2>
+<h2>MindSpore tests/ stats (Git clone)</h2>
 
-<div class="card">
-  <h3>Cases per Level (unmarked excluded)</h3>
-  <div id="c1"></div>
-</div>
-
-<div class="card">
-  <h3>Level × Device (unmarked excluded)</h3>
-  <div id="c2"></div>
-</div>
-
-<div class="card">
-  <h3>Top Directories (Top 20)</h3>
-  <div id="c3"></div>
+<div class="grid">
+  <div class="card"><h3>Cases per Level (unmarked excluded)</h3><div id="c1"></div></div>
+  <div class="card"><h3>Level × Device (unmarked excluded)</h3><div id="c2"></div></div>
+  <div class="card"><h3>Top Directories (Top 20)</h3><div id="c3"></div></div>
+  <div class="card"><h3>Quality Grade Distribution (A/B/C)</h3><div id="c4"></div></div>
+  <div class="card"><h3>Level × Quality Grade (unmarked excluded)</h3><div id="c5"></div></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 <script>
 async function main() {
-  const r = await fetch("/api/summary");
-  const data = await r.json();
+  const data = await (await fetch("/api/summary")).json();
 
-  // Chart 1: total per level (with labels)
   echarts.init(document.getElementById("c1")).setOption({
     tooltip: {},
     xAxis: { type: "category", data: data.levels },
     yAxis: { type: "value" },
-    series: [{
-      type: "bar",
-      name: "total",
-      data: data.totals,
-      label: { show: true, position: "top" }
-    }]
+    series: [{ type: "bar", name: "total", data: data.totals, label: { show: true, position: "top" } }]
   });
 
-  // Chart 2: level x device (stacked, with labels)
   echarts.init(document.getElementById("c2")).setOption({
     tooltip: { trigger: "axis" },
     legend: { data: data.devices },
     xAxis: { type: "category", data: data.levels },
     yAxis: { type: "value" },
-    series: data.series.map(s => ({
-      ...s,
-      type: "bar",
-      stack: "dev",
-      label: { show: true }
-    }))
+    series: data.series.map(s => ({ ...s, type: "bar", stack: "dev", label: { show: true } }))
   });
 
-  // Chart 3: top directories (with labels)
-  const r2 = await fetch("/api/dir_top");
-  const d2 = await r2.json();
-
+  const d2 = await (await fetch("/api/dir_top")).json();
   echarts.init(document.getElementById("c3")).setOption({
     tooltip: {},
     xAxis: { type: "value" },
     yAxis: { type: "category", data: d2.dirs },
-    series: [{
-      type: "bar",
-      name: "total",
-      data: d2.totals,
-      label: { show: true, position: "right" }
-    }]
+    series: [{ type: "bar", name: "total", data: d2.totals, label: { show: true, position: "right" } }]
+  });
+
+  const q = await (await fetch("/api/quality")).json();
+  echarts.init(document.getElementById("c4")).setOption({
+    tooltip: {},
+    xAxis: { type: "category", data: q.grades },
+    yAxis: { type: "value" },
+    series: [{ type: "bar", name: "cases", data: q.overall, label: { show: true, position: "top" } }]
+  });
+
+  echarts.init(document.getElementById("c5")).setOption({
+    tooltip: { trigger: "axis" },
+    legend: { data: q.series.map(s => s.name) },
+    xAxis: { type: "category", data: q.levels },
+    yAxis: { type: "value" },
+    series: q.series.map(s => ({ ...s, type: "bar", stack: "grade", label: { show: true } }))
   });
 }
 main();
