@@ -63,6 +63,16 @@
     <div id="c5"></div>
     <div class="note">
       A/B/C breakdown per level. Quality analysis includes all tests; <code>unmarked</code> level is hidden.
+      Click on a bar segment to see the matching test cases.
+    </div>
+    <div id="c5_drill" style="display:none; margin-top: 12px;">
+      <h4 id="c5_drill_title"></h4>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>dir_group</th><th>test</th><th>level</th><th>quality_grade</th><th>quality_score</th></tr></thead>
+          <tbody id="c5_drill_body"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -105,12 +115,20 @@ function main() {
     legend: { data: ld.devices },
     xAxis: { type: "category", data: ld.levels },
     yAxis: { type: "value" },
-    series: ld.series.map(s => ({ ...s, type: "bar", stack: "dev", label: { show: true } }))
+    series: ld.series.map(s => ({ ...s, type: "bar", stack: "dev", barMaxWidth: 30, label: { show: true } }))
   });
+  let c2DrillKey = null;
   c2chart.on("click", async function(params) {
     const level = params.name;
     const device = params.seriesName;
+    const key = `${level}|${device}`;
     const drillDiv = document.getElementById("c2_drill");
+    if (drillDiv.style.display === "block" && c2DrillKey === key) {
+      drillDiv.style.display = "none";
+      c2DrillKey = null;
+      return;
+    }
+    c2DrillKey = key;
     const drillTitle = document.getElementById("c2_drill_title");
     const drillBody = document.getElementById("c2_drill_body");
     drillTitle.textContent = `Test cases: ${level} × ${device} (loading...)`;
@@ -127,7 +145,7 @@ function main() {
     tooltip: {},
     xAxis: { type: "value" },
     yAxis: { type: "category", data: d2.dirs },
-    series: [{ type: "bar", name: "total", data: d2.totals, label: { show: true, position: "right" } }]
+    series: [{ type: "bar", name: "total", data: d2.totals, barMaxWidth: 20, label: { show: true, position: "right" } }]
   });
 
   const q = {"grades": ["A", "B", "C"], "overall": [6026, 12673, 8796], "levels": ["level0", "level1"], "series": [{"name": "A", "data": [5, 13]}, {"name": "B", "data": [16, 11]}, {"name": "C", "data": [2, 21]}]};
@@ -135,15 +153,38 @@ function main() {
     tooltip: {},
     xAxis: { type: "category", data: q.grades },
     yAxis: { type: "value" },
-    series: [{ type: "bar", name: "cases", data: q.overall, label: { show: true, position: "top" } }]
+    series: [{ type: "bar", name: "cases", data: q.overall, barMaxWidth: 30, label: { show: true, position: "top" } }]
   });
 
-  echarts.init(document.getElementById("c5")).setOption({
+  const c5chart = echarts.init(document.getElementById("c5"));
+  c5chart.setOption({
     tooltip: { trigger: "axis" },
     legend: { data: q.series.map(s => s.name) },
     xAxis: { type: "category", data: q.levels },
     yAxis: { type: "value" },
-    series: q.series.map(s => ({ ...s, type: "bar", stack: "grade", label: { show: true } }))
+    series: q.series.map(s => ({ ...s, type: "bar", stack: "grade", barMaxWidth: 30, label: { show: true } }))
+  });
+  let c5DrillKey = null;
+  c5chart.on("click", async function(params) {
+    const level = params.name;
+    const grade = params.seriesName;
+    const key = `${level}|${grade}`;
+    const drillDiv = document.getElementById("c5_drill");
+    if (drillDiv.style.display === "block" && c5DrillKey === key) {
+      drillDiv.style.display = "none";
+      c5DrillKey = null;
+      return;
+    }
+    c5DrillKey = key;
+    const drillTitle = document.getElementById("c5_drill_title");
+    const drillBody = document.getElementById("c5_drill_body");
+    drillTitle.textContent = `Test cases: ${level} × ${grade} (loading...)`;
+    drillDiv.style.display = "block";
+    const res = await (await fetch(`/api/cases_quality?level=${encodeURIComponent(level)}&grade=${encodeURIComponent(grade)}`)).json();
+    drillTitle.textContent = `Test cases: ${level} × ${grade} (${res.total} cases)`;
+    drillBody.innerHTML = res.rows.map(r =>
+      `<tr><td>${r.dir_group}</td><td>${r.test}</td><td>${r.level}</td><td>${r.quality_grade}</td><td>${r.quality_score}</td></tr>`
+    ).join("");
   });
 
   const qt = {"grades": ["A", "B", "C"], "rows": [{"owner_top": "mindspore_test_framework", "owner_sub": "apps", "A": 0, "B": 0, "C": 14, "total": 14}, {"owner_top": "perf_test", "owner_sub": "bert", "A": 0, "B": 0, "C": 2, "total": 2}, {"owner_top": "perf_test", "owner_sub": "test_lenet.py", "A": 0, "B": 0, "C": 2, "total": 2}, {"owner_top": "perf_test", "owner_sub": "test_passes_optimize.py", "A": 0, "B": 0, "C": 3, "total": 3}, {"owner_top": "perf_test", "owner_sub": "test_resnet_infer.py", "A": 0, "B": 0, "C": 1, "total": 1}, {"owner_top": "perf_test", "owner_sub": "test_resnet_pynative.py", "A": 0, "B": 0, "C": 1, "total": 1}, {"owner_top": "perf_test", "owner_sub": "test_resnet_train.py", "A": 0, "B": 0, "C": 1, "total": 1}, {"owner_top": "st", "owner_sub": "amp", "A": 2, "B": 0, "C": 0, "total": 2}, {"owner_top": "st", "owner_sub": "armour", "A": 0, "B": 3, "C": 0, "total": 3}, {"owner_top": "st", "owner_sub": "auto_parallel", "A": 5, "B": 103, "C": 64, "total": 172}, {"owner_top": "st", "owner_sub": "backend", "A": 14, "B": 87, "C": 105, "total": 206}, {"owner_top": "st", "owner_sub": "broadcast", "A": 0, "B": 1, "C": 1, "total": 2}, {"owner_top": "st", "owner_sub": "cluster", "A": 6, "B": 11, "C": 0, "total": 17}, {"owner_top": "st", "owner_sub": "collective_ops", "A": 91, "B": 157, "C": 32, "total": 280}, {"owner_top": "st", "owner_sub": "common", "A": 1, "B": 0, "C": 0, "total": 1}, {"owner_top": "st", "owner_sub": "compiler", "A": 459, "B": 2442, "C": 396, "total": 3297}, {"owner_top": "st", "owner_sub": "container", "A": 12, "B": 11, "C": 0, "total": 23}, {"owner_top": "st", "owner_sub": "cpu_data_parallel", "A": 0, "B": 3, "C": 0, "total": 3}, {"owner_top": "st", "owner_sub": "custom", "A": 45, "B": 52, "C": 8, "total": 105}, {"owner_top": "st", "owner_sub": "data_transfer", "A": 0, "B": 1, "C": 4, "total": 5}, {"owner_top": "st", "owner_sub": "dataloader", "A": 46, "B": 38, "C": 31, "total": 115}, {"owner_top": "st", "owner_sub": "dataset", "A": 105, "B": 45, "C": 55, "total": 205}, {"owner_top": "st", "owner_sub": "dataset_helper", "A": 0, "B": 1, "C": 0, "total": 1}, {"owner_top": "st", "owner_sub": "dfx", "A": 0, "B": 1, "C": 1, "total": 2}, {"owner_top": "st", "owner_sub": "dynamic_shape", "A": 418, "B": 60, "C": 13, "total": 491}, {"owner_top": "st", "owner_sub": "export_and_load", "A": 33, "B": 54, "C": 16, "total": 103}, {"owner_top": "st", "owner_sub": "frontend", "A": 4, "B": 12, "C": 15, "total": 31}, {"owner_top": "st", "owner_sub": "fusion", "A": 2, "B": 4, "C": 10, "total": 16}, {"owner_top": "st", "owner_sub": "gnn", "A": 0, "B": 1, "C": 6, "total": 7}, {"owner_top": "st", "owner_sub": "golden_stick", "A": 0, "B": 1, "C": 0, "total": 1}, {"owner_top": "st", "owner_sub": "graceful_exit", "A": 0, "B": 2, "C": 0, "total": 2}, {"owner_top": "st", "owner_sub": "graph_kernel", "A": 28, "B": 54, "C": 187, "total": 269}, {"owner_top": "st", "owner_sub": "hal", "A": 9, "B": 29, "C": 21, "total": 59}, {"owner_top": "st", "owner_sub": "hardware", "A": 6, "B": 11, "C": 17, "total": 34}, {"owner_top": "st", "owner_sub": "heterogeneous", "A": 1, "B": 14, "C": 0, "total": 15}, {"owner_top": "st", "owner_sub": "high_availability", "A": 3, "B": 23, "C": 20, "total": 46}, {"owner_top": "st", "owner_sub": "high_grad", "A": 1, "B": 3, "C": 4, "total": 8}, {"owner_top": "st", "owner_sub": "hyper_offload", "A": 5, "B": 33, "C": 0, "total": 38}, {"owner_top": "st", "owner_sub": "infer", "A": 12, "B": 120, "C": 13, "total": 145}, {"owner_top": "st", "owner_sub": "mem_reuse", "A": 0, "B": 0, "C": 2, "total": 2}, {"owner_top": "st", "owner_sub": "mindrecord", "A": 0, "B": 1, "C": 0, "total": 1}, {"owner_top": "st", "owner_sub": "mindscience", "A": 3, "B": 0, "C": 0, "total": 3}, {"owner_top": "st", "owner_sub": "mint", "A": 201, "B": 240, "C": 119, "total": 560}, {"owner_top": "st", "owner_sub": "mix_precision", "A": 12, "B": 9, "C": 4, "total": 25}, {"owner_top": "st", "owner_sub": "networks", "A": 0, "B": 40, "C": 29, "total": 69}, {"owner_top": "st", "owner_sub": "nn", "A": 91, "B": 19, "C": 17, "total": 127}, {"owner_top": "st", "owner_sub": "nontask_sink", "A": 1, "B": 7, "C": 2, "total": 10}, {"owner_top": "st", "owner_sub": "numpy_native", "A": 7, "B": 40, "C": 222, "total": 269}, {"owner_top": "st", "owner_sub": "offload", "A": 7, "B": 6, "C": 0, "total": 13}, {"owner_top": "st", "owner_sub": "ops", "A": 1881, "B": 3073, "C": 1827, "total": 6781}, {"owner_top": "st", "owner_sub": "optimizer", "A": 12, "B": 9, "C": 1, "total": 22}, {"owner_top": "st", "owner_sub": "optimizer_ex", "A": 13, "B": 54, "C": 1, "total": 68}, {"owner_top": "st", "owner_sub": "parameter", "A": 19, "B": 2, "C": 0, "total": 21}, {"owner_top": "st", "owner_sub": "pi_jit", "A": 259, "B": 830, "C": 709, "total": 1798}, {"owner_top": "st", "owner_sub": "probability", "A": 16, "B": 150, "C": 5, "total": 171}, {"owner_top": "st", "owner_sub": "pynative", "A": 165, "B": 349, "C": 142, "total": 656}, {"owner_top": "st", "owner_sub": "rewrite", "A": 13, "B": 4, "C": 0, "total": 17}, {"owner_top": "st", "owner_sub": "runtime", "A": 58, "B": 130, "C": 44, "total": 232}, {"owner_top": "st", "owner_sub": "scipy_st", "A": 61, "B": 23, "C": 5, "total": 89}, {"owner_top": "st", "owner_sub": "sparse", "A": 27, "B": 65, "C": 14, "total": 106}, {"owner_top": "st", "owner_sub": "symmetric_memory_ops", "A": 0, "B": 9, "C": 0, "total": 9}, {"owner_top": "st", "owner_sub": "tensor", "A": 466, "B": 137, "C": 76, "total": 679}, {"owner_top": "st", "owner_sub": "tools", "A": 15, "B": 38, "C": 84, "total": 137}, {"owner_top": "st", "owner_sub": "train", "A": 16, "B": 5, "C": 3, "total": 24}, {"owner_top": "st", "owner_sub": "utils", "A": 3, "B": 7, "C": 0, "total": 10}, {"owner_top": "st", "owner_sub": "vmap", "A": 5, "B": 6, "C": 0, "total": 11}, {"owner_top": "ut", "owner_sub": "cpp", "A": 0, "B": 1, "C": 313, "total": 314}, {"owner_top": "ut", "owner_sub": "data", "A": 0, "B": 0, "C": 5, "total": 5}, {"owner_top": "ut", "owner_sub": "ge", "A": 0, "B": 2, "C": 1, "total": 3}, {"owner_top": "ut", "owner_sub": "python", "A": 1367, "B": 4040, "C": 4128, "total": 9535}]};

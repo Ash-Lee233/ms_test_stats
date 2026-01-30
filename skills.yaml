@@ -1,0 +1,244 @@
+name: mindspore_test_stats
+version: 2.0.0
+description: |
+  Scan a locally cloned MindSpore repository's tests/ directory, extract pytest test case
+  metadata via AST parsing, generate multi-sheet Excel reports, serve an interactive ECharts
+  web dashboard with drill-down, and export PDF snapshots.
+
+keywords:
+  - mindspore
+  - tests
+  - pytest
+  - statistics
+  - quality
+  - excel
+  - echarts
+  - flask
+  - python
+
+intents:
+  - name: scan_test_stats
+    description: |
+      Scan the tests/ folder, parse all Python test files via AST, extract level/device/quality
+      metadata, build summary DataFrames, export Excel, and start the web dashboard.
+    training_phrases:
+      - "Generate test statistics for MindSpore tests"
+      - "Scan tests folder and count level0, level1, etc."
+      - "Show CPU GPU NPU test counts"
+      - "Export test case stats to Excel"
+      - "Visualize test case distribution"
+      - "Run the test stats pipeline"
+      - "Analyze test quality"
+    parameters:
+      - name: repo_root
+        description: Absolute path to the local MindSpore repo clone
+        type: string
+        required: true
+      - name: tests_dir
+        description: Relative path to the tests directory (default "tests")
+        type: string
+        required: false
+      - name: output_excel
+        description: Output Excel path (default "output/stats.xlsx")
+        type: string
+        required: false
+    outputs:
+      - name: excel_file
+        description: Path to generated Excel file with 8 sheets of test statistics
+        type: string
+      - name: web_url
+        description: Local URL to view the interactive dashboard
+        type: string
+    examples:
+      - input: |
+          I'm inside a clone of the MindSpore repo. I want to analyze the tests directory,
+          count how many test cases are level0, level1, per device, and export this to Excel.
+      - input: |
+          Run stats on MindSpore tests and give me charts for level and device distributions.
+
+  - name: view_level_device
+    description: |
+      View the Level x Device stacked bar chart. Shows how many test cases run on each device
+      type (CPU/GPU/NPU/unknown) for every level. Tests marked with @pytest.mark.skip are excluded.
+      Clicking a bar segment drills down to show matching test cases.
+    training_phrases:
+      - "Show level device breakdown"
+      - "How many tests per device per level?"
+      - "Show CPU GPU NPU distribution by level"
+      - "Open the level device chart"
+
+  - name: drill_down_cases
+    description: |
+      Drill down into specific test cases by clicking a bar segment in the Level x Device chart,
+      or by querying the /api/cases endpoint with level and device parameters.
+      Clicking the same segment again toggles (hides) the drill-down table.
+    training_phrases:
+      - "Show test cases for level0 GPU"
+      - "Drill down into level1 CPU tests"
+      - "Which tests run on NPU at level2?"
+      - "List the matching test cases"
+
+  - name: view_top_directories
+    description: |
+      Display the Top 20 directories by runnable test count (skip removed) as a horizontal bar chart.
+      Directory groups are derived from the first two path segments under tests/.
+    training_phrases:
+      - "Show top directories with test counts"
+      - "Which subdirectories have most tests?"
+      - "Show the top 20 test directories"
+
+  - name: view_quality_distribution
+    description: |
+      Display the overall A/B/C quality grade distribution as a bar chart.
+      Quality analysis includes all tests (no skip filtering).
+      Grades are based on static heuristics: assertion count, parametrize, docstring, skip markers.
+    training_phrases:
+      - "Show quality distribution"
+      - "How many A B C tests are there?"
+      - "Show test quality grades"
+      - "What is the overall quality?"
+
+  - name: view_quality_by_level
+    description: |
+      Display the Level x Quality Grade stacked bar chart showing A/B/C breakdown per test level.
+      Unmarked level is excluded from the chart but retained in Excel.
+    training_phrases:
+      - "Show quality by level"
+      - "Quality grade per level breakdown"
+      - "Which levels have the most C-grade tests?"
+
+  - name: view_quality_by_owner
+    description: |
+      Display the Owner x Quality Grade table, where owner is refined to two directory levels
+      (e.g. ut/python, st/networks). Includes all tests, no skip filtering.
+    training_phrases:
+      - "Show quality by owner"
+      - "Which directories have worst quality?"
+      - "Owner quality grade table"
+
+  - name: view_pytest_decorators
+    description: |
+      Display the Pytest Decorators table showing how many times each @pytest... decorator
+      appears (occurrences) and how many distinct test cases use it (unique_test_cases).
+    training_phrases:
+      - "Show pytest decorator usage"
+      - "Which decorators are used most?"
+      - "List all pytest markers and their counts"
+
+  - name: export_pdf
+    description: |
+      Export the web dashboard to a PDF file using Playwright headless browser.
+      Generates Excel first, starts the Flask server, renders the page, and saves output/dashboard.pdf.
+    training_phrases:
+      - "Export dashboard to PDF"
+      - "Generate a PDF report"
+      - "Save the charts as PDF"
+      - "Print the dashboard"
+
+  - name: explain_quality_scoring
+    description: |
+      Explain the A/B/C quality scoring system. Scoring rules:
+        +2 for assert_count >= 1
+        +1 for assert_count >= 3
+        +1 for @pytest.mark.parametrize
+        +1 for having a docstring
+        -1 for skip/skipif/xfail
+      Grade mapping: >= 4 → A, 2-3 → B, <= 1 → C.
+      See ms_test_stats/QUALITY_SCORING.md for full documentation.
+    training_phrases:
+      - "How does quality scoring work?"
+      - "Explain A B C grades"
+      - "What makes a test grade A?"
+      - "How are test quality scores calculated?"
+
+  - name: modify_config
+    description: |
+      Help the user modify config.yaml settings: repo_root, tests_dir, output_excel,
+      level_regex, and device_keywords (cpu/gpu/npu keyword lists).
+    training_phrases:
+      - "Change the repo root path"
+      - "Update config settings"
+      - "Add a new device keyword"
+      - "Modify the level regex"
+
+environment:
+  languages: [python]
+  frameworks: [flask, pandas, openpyxl, echarts]
+  tools: [pytest, yaml, playwright]
+
+file_structure:
+  - run.py
+  - export_pdf.py
+  - config.yaml
+  - requirements.txt
+  - ms_test_stats/
+    - scanner.py
+    - parser.py
+    - device_map.py
+    - path_dim.py
+    - quality.py
+    - stats.py
+    - excel.py
+    - data_service.py
+    - webapp.py
+    - report.py
+    - QUALITY_SCORING.md
+  - templates/
+    - index.html
+  - output/
+    - stats.xlsx
+    - report.html
+    - dashboard.pdf
+
+api_endpoints:
+  - path: /
+    method: GET
+    description: Render the dashboard page
+  - path: /api/level_device
+    method: GET
+    description: Level x Device matrix (unmarked excluded, skip removed)
+  - path: /api/dir_top
+    method: GET
+    description: Top 20 directories by test count (skip removed)
+  - path: /api/quality
+    method: GET
+    description: Overall + per-level A/B/C distribution (no skip filter)
+  - path: /api/quality_owner_table
+    method: GET
+    description: Owner (top+sub) x Quality grade table (no skip filter)
+  - path: /api/pytest_decorators_table
+    method: GET
+    description: Pytest decorator usage statistics
+  - path: /api/cases
+    method: GET
+    description: Drill-down test cases by level and device
+    parameters:
+      - name: level
+        type: string
+      - name: device
+        type: string
+  - path: /shutdown
+    method: GET
+    description: Gracefully stop the Flask server
+
+usage:
+  steps:
+    - "git clone https://gitee.com/mindspore/mindspore.git"
+    - "git clone https://github.com/Ash-Lee233/ms_test_stats.git"
+    - "Edit config.yaml — set repo_root to MindSpore clone path"
+    - "pip install -r requirements.txt"
+    - "python run.py"
+    - "Open http://127.0.0.1:5000 to view the dashboard"
+  output:
+    - "Excel with 8 sheets of test statistics"
+    - "Interactive web dashboard with 6 visualizations"
+    - "Optional PDF export via export_pdf.py"
+
+limitations:
+  - "Requires a local clone of the MindSpore repository"
+  - "Test files must be Python with test_ prefix naming convention"
+  - "Quality scoring is static (AST-based), not execution-based"
+  - "unmarked level is excluded from charts by default"
+  - "PDF export requires Playwright and Chromium browser runtime"
+
+license: MIT

@@ -1,62 +1,86 @@
-# MindSpore Tests Stats (Git Clone Version)
+# MindSpore Tests Stats
 
-This project scans a locally cloned MindSpore repository and analyzes the `tests/` directory to generate an
-Excel report and a lightweight web dashboard.
+Scan a locally cloned MindSpore repository's `tests/` directory, extract pytest test case metadata via AST parsing,
+generate Excel reports and serve an interactive web dashboard.
 
-## What you get
+## Features
 
-### Main statistics (skip removed)
-Main statistics **exclude** test cases marked with `@pytest.mark.skip`:
-- **Level × Device** breakdown (CPU/GPU/NPU/unknown)
-- **Top Directories** (Top 20) by test count (directory group = `tests/<top>/<second>/` when available)
+### Test Case Discovery & Parsing
+- Extracts top-level `def test_*` functions and `class ...: def test_*` methods (including async)
+- Supports marker inheritance:
+  - Module-level `pytestmark = pytest.mark.xxx` (list/tuple)
+  - Class-level decorators
+  - Simple alias expansion, e.g. `level0 = pytest.mark.level0` then `@level0`
+- Parallel scanning (ThreadPool for I/O) and parallel AST parsing (ProcessPool for CPU)
 
-> Note: the previous *Owner × Device* chart was removed to reduce redundancy.
+### Statistics & Visualizations
 
-### Quality statistics (no skipping)
-Quality analysis **includes all tests** (no skipping), including those marked with `skip`:
-- Overall A/B/C distribution
-- Level × A/B/C distribution
-- **Owner (subdir) × A/B/C** shown as a **table** only, where owner is refined to **one more directory level**:
-  - `tests/ut/python/...` → `ut/python`
-  - `tests/st/networks/...` → `st/networks`
-  - If only one segment exists, it falls back to the top-level folder name.
+#### Main statistics (skip removed)
+Exclude test cases marked with `@pytest.mark.skip`:
+- **Level x Device** stacked bar chart (CPU/GPU/NPU/unknown), with drill-down click to view matching test cases
+- **Top 20 Directories** horizontal bar chart (directory group = `tests/<top>/<second>/`)
 
-### Pytest decorator table (occurrence count, no inference)
-A table that counts how many times each `@pytest...` decorator appears on test functions/methods (e.g. `pytest.mark.parametrize`),
-without any “purpose inference” column.
+#### Quality statistics (no skipping)
+Include **all** tests (even `@pytest.mark.skip`) with static A/B/C grading:
+- **Quality Grade Distribution** bar chart (overall A/B/C counts)
+- **Level x Quality Grade** stacked bar chart
+- **Owner x Quality Grade** table (owner refined to two directory levels, e.g. `ut/python`, `st/networks`)
 
-## How it works
+See [QUALITY_SCORING.md](ms_test_stats/QUALITY_SCORING.md) for full scoring methodology.
 
-### Test case extraction
-The parser counts:
-- Top-level `def test_*`
-- `class ...: def test_*` methods
+#### Pytest decorator table
+Counts how many times each `@pytest...` decorator appears on test functions/methods, with both
+`occurrences` and `unique_test_cases` columns.
 
-Marker inheritance supported:
-- Module-level `pytestmark = pytest.mark.xxx` (also list/tuple)
-- Class-level decorators
-- Simple module-scope alias, e.g. `level0 = pytest.mark.level0` then `@level0`
+### Output Formats
+- **Excel** (`output/stats.xlsx`) — 8 sheets: cases, summary_level, summary_level_device, summary_dir_top, summary_quality, summary_quality_level, summary_quality_owner_subdir, summary_pytest_decorators
+- **Web Dashboard** — Flask server with ECharts interactive charts
+- **PDF** — Playwright-based headless browser screenshot of the dashboard
 
-### Skip policy
-- Main charts/tables: **exclude** `@pytest.mark.skip`
-- Quality (A/B/C): **include all**, even if `skip` is present
+## Project Structure
+
+```
+ms_test_stats/
+├── run.py                  # Main entry point: scan → parse → stats → Excel → web server
+├── export_pdf.py           # Export dashboard to PDF via Playwright
+├── config.yaml             # Configuration (repo_root, device keywords, etc.)
+├── requirements.txt        # Python dependencies
+├── ms_test_stats/          # Core package
+│   ├── scanner.py          # Threaded file discovery and reading
+│   ├── parser.py           # AST-based test case extraction
+│   ├── device_map.py       # Map pytest markers to device types
+│   ├── path_dim.py         # Directory grouping utilities
+│   ├── quality.py          # Static quality scoring (A/B/C)
+│   ├── stats.py            # DataFrame aggregation
+│   ├── excel.py            # Multi-sheet Excel writer
+│   ├── data_service.py     # Caching data layer with mtime invalidation
+│   ├── webapp.py           # Flask REST API (7 endpoints)
+│   ├── report.py           # Static HTML report generator
+│   └── QUALITY_SCORING.md  # Quality grading documentation
+├── templates/
+│   └── index.html          # ECharts dashboard (6 visualizations)
+└── output/                 # Generated outputs
+    ├── stats.xlsx
+    ├── report.html
+    └── dashboard.pdf
+```
 
 ## Quickstart
 
-1) Clone MindSpore & ms_test_stats
+1. Clone MindSpore & this project:
 ```bash
 git clone https://gitee.com/mindspore/mindspore.git
-git clone https://github.com/Ash-Lee233/ms_test_stats.git 
+git clone https://github.com/Ash-Lee233/ms_test_stats.git
 ```
 
-2) Edit `config.yaml` and set `repo_root`
+2. Edit `config.yaml` — set `repo_root` to your MindSpore clone path.
 
-3) Install
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-4) Run
+4. Run:
 ```bash
 python run.py
 ```
@@ -64,22 +88,41 @@ python run.py
 Outputs:
 - Excel: `output/stats.xlsx`
 - Web UI: http://127.0.0.1:5000
-## Export the dashboard to PDF
 
-This project does **not** generate a static HTML report anymore. If you want a PDF snapshot of the web dashboard, run:
+## API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /` | Dashboard page |
+| `GET /api/level_device` | Level x Device matrix (unmarked excluded, skip removed) |
+| `GET /api/dir_top` | Top 20 directories by test count |
+| `GET /api/quality` | Overall + per-level A/B/C distribution |
+| `GET /api/quality_owner_table` | Owner x Quality grade table |
+| `GET /api/pytest_decorators_table` | Pytest decorator usage stats |
+| `GET /api/cases?level=X&device=Y` | Drill-down: test cases matching filter |
+| `GET /shutdown` | Gracefully stop the server |
+
+## Export to PDF
 
 ```bash
 python export_pdf.py
 ```
 
-It will:
-1) generate `output/stats.xlsx`
-2) start the local dashboard server
-3) print the dashboard page to `output/dashboard.pdf`
+This will generate `output/stats.xlsx`, start the dashboard, render it with Playwright, and save `output/dashboard.pdf`.
 
-### Playwright note
-On first use, you may need to install the browser runtime:
-
+On first use you may need to install the browser runtime:
 ```bash
 python -m playwright install chromium
 ```
+
+## Skip Policy
+
+| Context | `@pytest.mark.skip` handling |
+|---------|------------------------------|
+| Main charts (Level x Device, Top Dirs) | **Excluded** |
+| Quality analysis (A/B/C) | **Included** |
+| Excel `cases` sheet | **Included** (all tests listed) |
+
+## License
+
+MIT

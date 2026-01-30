@@ -11,6 +11,7 @@ from ms_test_stats.data_service import (
     fetch_quality_owner_table,
     fetch_pytest_decorators,
     fetch_cases_by_level_device,
+    fetch_cases_by_level_grade,
 )
 
 
@@ -47,6 +48,12 @@ def create_app(excel_path: str) -> Flask:
         level = request.args.get("level", "")
         device = request.args.get("device", "")
         return jsonify(fetch_cases_by_level_device(excel, level, device))
+
+    @app.get("/api/cases_quality")
+    def api_cases_quality():
+        level = request.args.get("level", "")
+        grade = request.args.get("grade", "")
+        return jsonify(fetch_cases_by_level_grade(excel, level, grade))
 
     @app.get("/shutdown")
     def shutdown():

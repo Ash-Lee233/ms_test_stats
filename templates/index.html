@@ -63,6 +63,16 @@
     <div id="c5"></div>
     <div class="note">
       A/B/C breakdown per level. Quality analysis includes all tests; <code>unmarked</code> level is hidden.
+      Click on a bar segment to see the matching test cases.
+    </div>
+    <div id="c5_drill" style="display:none; margin-top: 12px;">
+      <h4 id="c5_drill_title"></h4>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>dir_group</th><th>test</th><th>level</th><th>quality_grade</th><th>quality_score</th></tr></thead>
+          <tbody id="c5_drill_body"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -105,12 +115,20 @@ async function main() {
     legend: { data: ld.devices },
     xAxis: { type: "category", data: ld.levels },
     yAxis: { type: "value" },
-    series: ld.series.map(s => ({ ...s, type: "bar", stack: "dev", label: { show: true } }))
+    series: ld.series.map(s => ({ ...s, type: "bar", stack: "dev", barMaxWidth: 30, label: { show: true } }))
   });
+  let c2DrillKey = null;
   c2chart.on("click", async function(params) {
     const level = params.name;
     const device = params.seriesName;
+    const key = `${level}|${device}`;
     const drillDiv = document.getElementById("c2_drill");
+    if (drillDiv.style.display === "block" && c2DrillKey === key) {
+      drillDiv.style.display = "none";
+      c2DrillKey = null;
+      return;
+    }
+    c2DrillKey = key;
     const drillTitle = document.getElementById("c2_drill_title");
     const drillBody = document.getElementById("c2_drill_body");
     drillTitle.textContent = `Test cases: ${level} × ${device} (loading...)`;
@@ -127,7 +145,7 @@ async function main() {
     tooltip: {},
     xAxis: { type: "value" },
     yAxis: { type: "category", data: d2.dirs },
-    series: [{ type: "bar", name: "total", data: d2.totals, label: { show: true, position: "right" } }]
+    series: [{ type: "bar", name: "total", data: d2.totals, barMaxWidth: 20, label: { show: true, position: "right" } }]
   });
 
   const q = await (await fetch("/api/quality")).json();
@@ -135,15 +153,38 @@ async function main() {
     tooltip: {},
     xAxis: { type: "category", data: q.grades },
     yAxis: { type: "value" },
-    series: [{ type: "bar", name: "cases", data: q.overall, label: { show: true, position: "top" } }]
+    series: [{ type: "bar", name: "cases", data: q.overall, barMaxWidth: 30, label: { show: true, position: "top" } }]
   });
 
-  echarts.init(document.getElementById("c5")).setOption({
+  const c5chart = echarts.init(document.getElementById("c5"));
+  c5chart.setOption({
     tooltip: { trigger: "axis" },
     legend: { data: q.series.map(s => s.name) },
     xAxis: { type: "category", data: q.levels },
     yAxis: { type: "value" },
-    series: q.series.map(s => ({ ...s, type: "bar", stack: "grade", label: { show: true } }))
+    series: q.series.map(s => ({ ...s, type: "bar", stack: "grade", barMaxWidth: 30, label: { show: true } }))
+  });
+  let c5DrillKey = null;
+  c5chart.on("click", async function(params) {
+    const level = params.name;
+    const grade = params.seriesName;
+    const key = `${level}|${grade}`;
+    const drillDiv = document.getElementById("c5_drill");
+    if (drillDiv.style.display === "block" && c5DrillKey === key) {
+      drillDiv.style.display = "none";
+      c5DrillKey = null;
+      return;
+    }
+    c5DrillKey = key;
+    const drillTitle = document.getElementById("c5_drill_title");
+    const drillBody = document.getElementById("c5_drill_body");
+    drillTitle.textContent = `Test cases: ${level} × ${grade} (loading...)`;
+    drillDiv.style.display = "block";
+    const res = await (await fetch(`/api/cases_quality?level=${encodeURIComponent(level)}&grade=${encodeURIComponent(grade)}`)).json();
+    drillTitle.textContent = `Test cases: ${level} × ${grade} (${res.total} cases)`;
+    drillBody.innerHTML = res.rows.map(r =>
+      `<tr><td>${r.dir_group}</td><td>${r.test}</td><td>${r.level}</td><td>${r.quality_grade}</td><td>${r.quality_score}</td></tr>`
+    ).join("");
   });
 
   const qt = await (await fetch("/api/quality_owner_table")).json();

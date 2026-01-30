@@ -169,3 +169,14 @@ def fetch_cases_by_level_device(excel_path: str, level: str, device: str) -> Dic
 
     rows = df[["dir_group", "test", "level", "devices"]].to_dict(orient="records")
     return {"level": level, "device": device, "total": len(rows), "rows": rows}
+
+
+def fetch_cases_by_level_grade(excel_path: str, level: str, grade: str) -> Dict[str, Any]:
+    """Return test cases matching a specific level and quality grade (no skip filter)."""
+    sheets = _load_sheets(excel_path)
+    df = sheets["cases"]
+    df = df[df["level"] == level]
+    df = df[df["quality_grade"] == grade]
+
+    rows = df[["dir_group", "test", "level", "quality_grade", "quality_score"]].to_dict(orient="records")
+    return {"level": level, "grade": grade, "total": len(rows), "rows": rows}
