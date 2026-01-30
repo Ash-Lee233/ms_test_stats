@@ -43,9 +43,10 @@ Marker inheritance supported:
 
 ## Quickstart
 
-1) Clone MindSpore
+1) Clone MindSpore & ms_test_stats
 ```bash
 git clone https://gitee.com/mindspore/mindspore.git
+git clone https://github.com/Ash-Lee233/ms_test_stats.git 
 ```
 
 2) Edit `config.yaml` and set `repo_root`
